@@ -2,12 +2,15 @@ import React from "react";
 import Image from "next/image";
 import BorrowBook from "./BorrowBook";
 import BookCover from "./BookCover";
+import { db } from "@/db/drizzle";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 interface BookOverviewProps extends Book {
     userId: string;
 }
 
-const BookOverview = ({
+const BookOverview = async ({
     id,
     title,
     author,
@@ -20,6 +23,20 @@ const BookOverview = ({
     coverUrl,
     userId,
 }: BookOverviewProps) => {
+    const { 0: user } = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+    const borrowingEligibility = {
+        isEligible: availableCopies > 0 && user?.status === "APPROVED",
+        message:
+            availableCopies <= 0
+                ? "Book is not available"
+                : "You are not eligible to borrow this book",
+    };
+
     return (
         <section className="book-overview">
             <div className="flex flex-1 flex-col gap-5">
@@ -64,11 +81,13 @@ const BookOverview = ({
 
                 <p className="book-description">{description}</p>
 
-                <BorrowBook
-                    bookId={id}
-                    userId={userId}
-                    // borrowingEligibility={borrowingEligibility}
-                />
+                {user && (
+                    <BorrowBook
+                        bookId={id}
+                        userId={userId}
+                        borrowingEligibility={borrowingEligibility}
+                    />
+                )}
             </div>
 
             <div className="relative flex flex-1 justify-center">
